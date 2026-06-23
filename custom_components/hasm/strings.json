@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a remote Home Assistant",
+        "data": {
+          "url": "URL",
+          "token": "Long-Lived Access Token",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure instance",
+        "data": {
+          "url": "URL",
+          "token": "Long-Lived Access Token",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the instance.",
+      "invalid_auth": "The token was rejected.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This instance is already configured.",
+      "reconfigure_successful": "Instance updated.",
+      "wrong_instance": "This URL points to a different instance."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "verify_ssl": "Verify SSL certificate",
+          "max_update_entities": "Maximum update entities per instance"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": { "connectivity": { "name": "Connectivity" } },
+    "sensor": {
+      "core_version": { "name": "Core version" },
+      "os_version": { "name": "OS version" },
+      "supervisor_version": { "name": "Supervisor version" },
+      "updates_available": { "name": "Updates available" },
+      "error_count": { "name": "Error count" }
+    },
+    "button": {
+      "restart": { "name": "Restart" },
+      "reload_config": { "name": "Reload configuration" }
+    }
+  },
+  "services": {
+    "call_remote_service": {
+      "name": "Call remote service",
+      "description": "Relays a service call to a remote Home Assistant managed by HASM.",
+      "fields": {
+        "config_entry_id": { "name": "Instance", "description": "Target HASM instance." },
+        "remote_domain": { "name": "Domain", "description": "Remote service domain." },
+        "remote_service": { "name": "Service", "description": "Remote service to call." },
+        "service_data": { "name": "Data", "description": "Data passed to the remote service." }
+      }
+    }
+  }
+}

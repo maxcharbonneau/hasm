@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter un Home Assistant distant",
+        "data": {
+          "url": "URL",
+          "token": "Jeton d'accès longue durée",
+          "verify_ssl": "Vérifier le certificat SSL"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer l'instance",
+        "data": {
+          "url": "URL",
+          "token": "Jeton d'accès longue durée",
+          "verify_ssl": "Vérifier le certificat SSL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connexion à l'instance impossible.",
+      "invalid_auth": "Le jeton a été refusé.",
+      "unknown": "Erreur inattendue."
+    },
+    "abort": {
+      "already_configured": "Cette instance est déjà configurée.",
+      "reconfigure_successful": "Instance mise à jour.",
+      "wrong_instance": "Cette URL pointe vers une autre instance."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Intervalle de sondage (secondes)",
+          "verify_ssl": "Vérifier le certificat SSL",
+          "max_update_entities": "Nombre maximum d'entités de mise à jour par instance"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": { "connectivity": { "name": "Connectivité" } },
+    "sensor": {
+      "core_version": { "name": "Version Core" },
+      "os_version": { "name": "Version OS" },
+      "supervisor_version": { "name": "Version Supervisor" },
+      "updates_available": { "name": "Mises à jour disponibles" },
+      "error_count": { "name": "Nombre d'erreurs" }
+    },
+    "button": {
+      "restart": { "name": "Redémarrer" },
+      "reload_config": { "name": "Recharger la configuration" }
+    }
+  },
+  "services": {
+    "call_remote_service": {
+      "name": "Appeler un service distant",
+      "description": "Relaie un appel de service vers une instance Home Assistant distante gérée par HASM.",
+      "fields": {
+        "config_entry_id": { "name": "Instance", "description": "Instance HASM cible." },
+        "remote_domain": { "name": "Domaine", "description": "Domaine du service distant." },
+        "remote_service": { "name": "Service", "description": "Service distant à appeler." },
+        "service_data": { "name": "Données", "description": "Données transmises au service distant." }
+      }
+    }
+  }
+}

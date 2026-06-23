@@ -1,0 +1,16 @@
+{
+  "entity": {
+    "binary_sensor": { "connectivity": { "default": "mdi:lan-connect" } },
+    "sensor": {
+      "core_version":       { "default": "mdi:home-assistant" },
+      "os_version":         { "default": "mdi:chip" },
+      "supervisor_version": { "default": "mdi:shield-home" },
+      "updates_available":  { "default": "mdi:package-up" },
+      "error_count":        { "default": "mdi:alert-circle" }
+    },
+    "button": {
+      "restart":       { "default": "mdi:restart" },
+      "reload_config": { "default": "mdi:reload" }
+    }
+  }
+}

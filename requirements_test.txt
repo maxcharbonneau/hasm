@@ -1,0 +1,3 @@
+# PHACC épingle une version HA exacte ; 0.13.205 => Home Assistant 2025.1.4
+# (version de test cible, cohérente avec le plancher 2025.1.0 de hacs.json).
+pytest-homeassistant-custom-component==0.13.205

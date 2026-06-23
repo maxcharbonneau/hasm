@@ -1,0 +1,31 @@
+call_remote_service:
+  name: Call remote service
+  description: Relays a service call to a remote Home Assistant managed by HASM.
+  fields:
+    config_entry_id:
+      name: Instance
+      description: The target HASM instance.
+      required: true
+      selector:
+        config_entry:
+          integration: hasm
+    remote_domain:
+      name: Domain
+      description: Domain of the remote service (e.g. homeassistant).
+      required: true
+      example: homeassistant
+      selector:
+        text:
+    remote_service:
+      name: Service
+      description: Remote service to call (e.g. restart).
+      required: true
+      example: restart
+      selector:
+        text:
+    service_data:
+      name: Data
+      description: Data passed to the remote service.
+      required: false
+      selector:
+        object:
