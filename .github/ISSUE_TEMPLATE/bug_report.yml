@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a problem with HASM
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in the details below so we can help quickly.
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.6.x"
+    validations:
+      required: true
+  - type: input
+    id: hasm_version
+    attributes:
+      label: HASM version
+      placeholder: "0.1.4"
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Settings → System → Logs, filtered on `custom_components.hasm`. Remove any tokens or secrets.
+      render: shell
+    validations:
+      required: false
