@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="custom_components/hasm/brand/icon.png" alt="HASM logo" width="120" height="120" />
+</p>
+
 # Home Assistant Site Manager (HASM)
 
 HASM is a Home Assistant integration that lets you supervise and control a fleet
