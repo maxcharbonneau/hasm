@@ -66,3 +66,6 @@ The Long-Lived Access Token is stored in Home Assistant's encrypted store. TLS
 certificates are verified by default (the verification can be disabled per
 instance for self-signed certificates). HASM only talks to the remote instances
 you configure: nothing leaves your Home Assistant.
+
+## Roadmap
+See [ROADMAP.md](ROADMAP.md) for the project direction — planned work, ideas, and non-goals.
