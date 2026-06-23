@@ -20,5 +20,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # 'brands' is skipped until the logo PR to home-assistant/brands is merged.
-          ignore: brands
