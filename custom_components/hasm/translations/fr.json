@@ -60,7 +60,7 @@
       "disk_free": { "name": "Espace disque libre" },
       "disk_used": { "name": "Espace disque utilisé" },
       "disk_total": { "name": "Disque total" },
-      "disk_used_percent": { "name": "Disque utilisé %" }
+      "disk_used_percent": { "name": "Utilisation du disque" }
     },
     "button": {
       "restart": { "name": "Redémarrer" },
