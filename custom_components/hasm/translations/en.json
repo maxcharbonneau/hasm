@@ -56,7 +56,11 @@
       "error_count": { "name": "Error count" },
       "backup_size": { "name": "Backup size ({agent})" },
       "backup_last_full": { "name": "Last full backup ({agent})" },
-      "backup_count": { "name": "Backup count ({agent})" }
+      "backup_count": { "name": "Backup count ({agent})" },
+      "disk_free": { "name": "Disk free" },
+      "disk_used": { "name": "Disk used" },
+      "disk_total": { "name": "Disk total" },
+      "disk_used_percent": { "name": "Disk used percent" }
     },
     "button": {
       "restart": { "name": "Restart" },
