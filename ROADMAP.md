@@ -23,10 +23,21 @@ expose useful data and actions, and let Home Assistant do the rest.
 - Configurable per-instance entity cap with a visible notification
 - Local brand icon (HA 2026.3+)
 
+## Phase 2 — backups & storage (shipped)
+
+### Backups
+- [x] **Per-destination backup sensors**: last full backup, backup size (space used), backup count
+- [x] **Per-destination backup-problem** binary sensor (turns on when a destination reports a failure)
+- [x] **Global backup sensors**: last automatic backup, next automatic backup, backup-in-progress binary sensor
+- [x] **Back up now** button (triggers an automatic backup; unavailable while one is running)
+
+### Server storage
+- [x] **Server disk sensors**: free / used / total / used %, sourced from Supervisor host info or the
+  `systemmonitor` integration (absent when the remote instance exposes neither)
+
 ## Phase 2 — next
 
 ### Richer monitoring (mostly data we already collect)
-- [ ] **Last backup** timestamp sensor + **backup overdue** binary sensor (from `backup/info`)
 - [ ] **Link latency** sensor (already measured on every poll)
 - [ ] Optional: count of unavailable entities on the remote instance
 
@@ -35,11 +46,11 @@ expose useful data and actions, and let Home Assistant do the rest.
 - [ ] Example Lovelace dashboard / package to view a fleet at a glance
 
 ### More actions
-- [ ] Buttons: **create backup now**, **refresh now**
+- [ ] Buttons: **refresh now**
 
 ## Later / ideas
 
-- [ ] Remote system metrics (CPU / memory / disk). Note: the Supervisor API is not reachable
+- [ ] Remote system metrics (CPU / memory). Note: the Supervisor API is not reachable
   remotely, so this would rely on mapping `sensor.*` entities the remote already exposes.
 - [ ] Submit to the **HACS default** store (searchable without adding a custom repository)
 - [ ] Additional UI translations (community-contributed)
