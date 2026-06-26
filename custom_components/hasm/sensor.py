@@ -174,6 +174,8 @@ class HasmBackupSizeSensor(_HasmAgentSensorBase):
     _attr_translation_key = "backup_size"
     _attr_device_class = SensorDeviceClass.DATA_SIZE
     _attr_native_unit_of_measurement = "B"
+    _attr_suggested_unit_of_measurement = "MB"
+    _attr_suggested_display_precision = 1
 
     @property
     def native_value(self):

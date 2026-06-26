@@ -300,7 +300,12 @@ async def test_backup_per_destination_sensors(hass, entry):
     # entity_id derives from the resolved friendly name (agent name "Local").
     size = hass.states.get("sensor.maison_backup_size_local")
     last = hass.states.get("sensor.maison_last_full_backup_local")
-    assert size is not None and size.state == "1048576"
+    # Canonical native value stays in bytes; HA converts to the suggested MB unit.
+    # The state carries the full-precision converted value (1048576 B -> 1.048576 MB);
+    # suggested_display_precision only rounds at the frontend display layer.
+    assert size is not None
+    assert size.attributes["unit_of_measurement"] == "MB"
+    assert size.state == "1.048576"
     assert last is not None and "2026-06-20" in last.state
 
 
