@@ -26,10 +26,41 @@ class HAUpdate:
 
 
 @dataclass(frozen=True)
-class HABackupState:
-    in_progress: bool
-    last_backup_at: str | None = None
-    last_backup_state: str | None = None  # "completed" | "failed" | None
+class HABackupAgent:
+    agent_id: str
+    name: str | None = None
+
+    @property
+    def is_local(self) -> bool:
+        return self.agent_id.lower().endswith(".local")
+
+
+@dataclass(frozen=True)
+class HAAgentBackupSummary:
+    agent_id: str
+    last_full_at: str | None = None  # ISO date of last successful FULL backup on this agent
+    total_size_bytes: int = 0  # sum of backup sizes stored on this agent
+    backup_count: int = 0  # backups present on this agent
+    has_problem: bool = False  # agent currently in failed/error state
+
+
+@dataclass(frozen=True)
+class HABackupOverview:
+    state: str | None = None
+    in_progress: bool = False
+    last_completed_at: str | None = None  # last_completed_automatic_backup (global)
+    next_at: str | None = None  # next_automatic_backup (global)
+    agents: tuple[HABackupAgent, ...] = ()
+    per_agent: tuple[HAAgentBackupSummary, ...] = ()
+
+
+@dataclass(frozen=True)
+class HAStorage:
+    source: str  # "host_info" | "systemmonitor"
+    free_bytes: int | None = None
+    used_bytes: int | None = None
+    total_bytes: int | None = None
+    used_percent: float | None = None
 
 
 @dataclass(frozen=True)
@@ -78,10 +109,10 @@ class HAHealth:
 class HasmSnapshot:
     """Full snapshot returned by the client on each polling cycle.
 
-    `location_name` is used for the device name. `updates` feeds the update platform.
-    `backup_state` is best-effort (None if not readable)."""
+    `location_name` is used for the device name. `updates` feeds the update platform."""
 
     health: HAHealth
     location_name: str | None = None
     updates: tuple[HAUpdate, ...] = ()
-    backup_state: HABackupState | None = None
+    backups: HABackupOverview | None = None
+    storage: HAStorage | None = None

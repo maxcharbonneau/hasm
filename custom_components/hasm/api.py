@@ -20,7 +20,6 @@ from .exceptions import (
     HasmResponseError,
 )
 from .models import (
-    HABackupState,
     HAConfig,
     HAHealth,
     HALogEntry,
@@ -31,7 +30,6 @@ from .models import (
 _ERROR_LEVELS = ("ERROR", "CRITICAL")
 _OS_SLUG = "home_assistant_operating_system"
 _SUPERVISOR_SLUG = "home_assistant_supervisor"
-_BACKUP_ACTIVE_STATES = ("in_progress", "create_backup", "creating", "running")
 _FEATURE_PROGRESS = 4  # UpdateEntityFeature.PROGRESS
 _FEATURE_BACKUP = 8  # UpdateEntityFeature.BACKUP
 
@@ -98,21 +96,6 @@ def detect_install_type(components: list[str], states: list[dict]) -> str:
 
 def count_error_entries(entries: list[HALogEntry]) -> int:
     return sum(1 for e in entries if (e.level or "").upper() in _ERROR_LEVELS)
-
-
-def parse_backup_info(result: dict) -> HABackupState:
-    result = result or {}
-    backups = result.get("backups") or []
-    last = max(backups, key=lambda b: b.get("date") or "", default=None)
-    state = (result.get("state") or "").lower() or None
-    last_state: str | None = None
-    if last is not None:
-        last_state = "failed" if (last.get("failed_agent_ids") or []) else "completed"
-    return HABackupState(
-        in_progress=state in _BACKUP_ACTIVE_STATES,
-        last_backup_at=(last or {}).get("date"),
-        last_backup_state=last_state,
-    )
 
 
 # --- Client (REST + WebSocket) -------------------------------------------------
@@ -294,10 +277,6 @@ class HasmApiClient:
         result = await self._ws_request("system_log/list")
         return [HALogEntry.from_dict(e) for e in (result or [])]
 
-    async def async_get_backup_state(self) -> HABackupState:
-        result = await self._ws_request("backup/info")
-        return parse_backup_info(result if isinstance(result, dict) else {})
-
     # --- Supervision aggregate ---
     async def async_get_snapshot(self) -> "HasmSnapshot":
         """Supervision aggregate. `online` depends ONLY on /api/config (lightweight).
@@ -323,12 +302,6 @@ class HasmApiClient:
         except HasmError as e:
             warnings.append(f"system log unavailable ({e})")
 
-        backup_state: HABackupState | None = None
-        try:
-            backup_state = await self.async_get_backup_state()
-        except HasmError as e:
-            warnings.append(f"backup state unavailable ({e})")
-
         updates = parse_updates(states)
         latency_ms = int((time.monotonic() - start) * 1000)
         health = HAHealth(
@@ -346,5 +319,4 @@ class HasmApiClient:
             health=health,
             location_name=config.location_name,
             updates=tuple(updates),
-            backup_state=backup_state,
         )
