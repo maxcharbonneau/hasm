@@ -12,7 +12,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import HasmConfigEntry
 from .api import HasmApiClient
-from .const import BACKUP_TRIGGER_DOMAIN, BACKUP_TRIGGER_SERVICE
 from .entity import HasmEntity
 
 
@@ -71,7 +70,5 @@ class HasmBackupNowButton(HasmEntity, ButtonEntity):
         return ov is not None and not ov.in_progress
 
     async def async_press(self) -> None:
-        await self.coordinator.client.async_call_service(
-            BACKUP_TRIGGER_DOMAIN, BACKUP_TRIGGER_SERVICE
-        )
+        await self.coordinator.client.async_trigger_backup()
         await self.coordinator.async_request_refresh()
