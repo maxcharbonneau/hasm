@@ -1,6 +1,9 @@
 {
   "entity": {
-    "binary_sensor": { "connectivity": { "default": "mdi:lan-connect" } },
+    "binary_sensor": {
+      "connectivity": { "default": "mdi:lan-connect" },
+      "backup_problem": { "default": "mdi:alert-circle" }
+    },
     "sensor": {
       "core_version":       { "default": "mdi:home-assistant" },
       "os_version":         { "default": "mdi:chip" },

@@ -41,7 +41,10 @@
     }
   },
   "entity": {
-    "binary_sensor": { "connectivity": { "name": "Connectivity" } },
+    "binary_sensor": {
+      "connectivity": { "name": "Connectivity" },
+      "backup_problem": { "name": "Backup problem ({agent})" }
+    },
     "sensor": {
       "core_version": { "name": "Core version" },
       "os_version": { "name": "OS version" },
