@@ -19,10 +19,15 @@ from .exceptions import (
     HasmError,
     HasmResponseError,
 )
+from .const import BACKUP_BUSY_STATES
 from .models import (
+    HAAgentBackupSummary,
+    HABackupAgent,
+    HABackupOverview,
     HAConfig,
     HAHealth,
     HALogEntry,
+    HAStorage,
     HAUpdate,
     HasmSnapshot,
 )
@@ -96,6 +101,66 @@ def detect_install_type(components: list[str], states: list[dict]) -> str:
 
 def count_error_entries(entries: list[HALogEntry]) -> int:
     return sum(1 for e in entries if (e.level or "").upper() in _ERROR_LEVELS)
+
+
+def parse_backup_agents(agents_info: dict) -> list[HABackupAgent]:
+    out: list[HABackupAgent] = []
+    for a in (agents_info or {}).get("agents") or []:
+        aid = a.get("agent_id")
+        if aid:
+            out.append(HABackupAgent(agent_id=aid, name=a.get("name")))
+    return out
+
+
+def _is_full(backup: dict) -> bool:
+    # No explicit "type" field in HA; a "full" backup includes Home Assistant core.
+    # APPROXIMATION: a *partial* backup that happens to include HA core would also
+    # count as "full" here. Accepted trade-off for supervision (HA exposes no
+    # explicit backup "type").
+    return bool(backup.get("homeassistant_included"))
+
+
+def summarize_backups(agents_info: dict, backup_info: dict) -> HABackupOverview:
+    backup_info = backup_info or {}
+    agents = parse_backup_agents(agents_info)
+    state = backup_info.get("state") or None
+    errors = backup_info.get("agent_errors") or {}
+    backups = backup_info.get("backups") or []
+    per_agent: list[HAAgentBackupSummary] = []
+    for ag in agents:
+        aid = ag.agent_id
+        sizes = 0
+        count = 0
+        last_full: str | None = None
+        for b in backups:
+            stored = b.get("agents") or {}
+            if aid not in stored:
+                continue
+            count += 1
+            entry = stored.get(aid) or {}
+            sizes += int(entry.get("size") or 0)
+            succeeded = aid not in (b.get("failed_agent_ids") or [])
+            if succeeded and _is_full(b):
+                d = b.get("date")
+                if d and (last_full is None or d > last_full):
+                    last_full = d
+        per_agent.append(
+            HAAgentBackupSummary(
+                agent_id=aid,
+                last_full_at=last_full,
+                total_size_bytes=sizes,
+                backup_count=count,
+                has_problem=aid in errors,
+            )
+        )
+    return HABackupOverview(
+        state=state,
+        in_progress=state in BACKUP_BUSY_STATES,
+        last_completed_at=backup_info.get("last_completed_automatic_backup"),
+        next_at=backup_info.get("next_automatic_backup"),
+        agents=tuple(agents),
+        per_agent=tuple(per_agent),
+    )
 
 
 # --- Client (REST + WebSocket) -------------------------------------------------

@@ -28,6 +28,12 @@ DEFAULT_MAX_UPDATE_ENTITIES = (
 MIN_MAX_UPDATE_ENTITIES = 10
 MAX_MAX_UPDATE_ENTITIES = 2000
 
+# Backup
+BACKUP_BUSY_STATES = ("create_backup", "receive_backup", "restore_backup")
+BACKUP_TRIGGER_DOMAIN = "backup"
+BACKUP_TRIGGER_SERVICE = "create_automatic"
+MAX_BACKUP_AGENTS = 25  # hard cap on per-destination entity sets (loop guard)
+
 # Generic passthrough service
 SERVICE_CALL_REMOTE = "call_remote_service"
 ATTR_DOMAIN = "remote_domain"
