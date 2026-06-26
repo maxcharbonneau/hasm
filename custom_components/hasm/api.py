@@ -412,6 +412,16 @@ class HasmApiClient:
         result = await self._ws_request("system_log/list")
         return [HALogEntry.from_dict(e) for e in (result or [])]
 
+    async def async_get_host_info(self) -> dict:
+        """Supervisor host info (HAOS/Supervised). Raises HasmError on Core/Container."""
+        return await self._get_json("/api/hassio/host/info") or {}
+
+    async def async_get_backup_agents_raw(self) -> dict:
+        return await self._ws_request("backup/agents/info") or {}
+
+    async def async_get_backup_info_raw(self) -> dict:
+        return await self._ws_request("backup/info") or {}
+
     # --- Supervision aggregate ---
     async def async_get_snapshot(self) -> "HasmSnapshot":
         """Supervision aggregate. `online` depends ONLY on /api/config (lightweight).
@@ -437,6 +447,22 @@ class HasmApiClient:
         except HasmError as e:
             warnings.append(f"system log unavailable ({e})")
 
+        backups = None
+        try:
+            agents_raw = await self.async_get_backup_agents_raw()
+            info_raw = await self.async_get_backup_info_raw()
+            backups = summarize_backups(agents_raw, info_raw)
+        except HasmError as e:
+            warnings.append(f"backup info unavailable ({e})")
+
+        storage = None
+        try:
+            storage = parse_host_storage(await self.async_get_host_info())
+        except HasmError:
+            storage = None
+        if storage is None:
+            storage = parse_systemmonitor_storage(states)
+
         updates = parse_updates(states)
         latency_ms = int((time.monotonic() - start) * 1000)
         health = HAHealth(
@@ -454,4 +480,6 @@ class HasmApiClient:
             health=health,
             location_name=config.location_name,
             updates=tuple(updates),
+            backups=backups,
+            storage=storage,
         )
