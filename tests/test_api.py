@@ -100,6 +100,29 @@ def test_parse_updates_skips_hasm_mirror_entities():
     assert updates[0].entity_id == "update.home_assistant_core"
 
 
+def test_parse_updates_skips_unavailable():
+    states = [
+        {"entity_id": "update.real", "state": "on",
+         "attributes": {"installed_version": "1", "latest_version": "2"}},
+        {"entity_id": "update.ghost", "state": "unavailable", "attributes": {}},
+    ]
+    assert [u.entity_id for u in parse_updates(states)] == ["update.real"]
+
+
+def test_parse_updates_keeps_unknown():
+    states = [{"entity_id": "update.x", "state": "unknown", "attributes": {}}]
+    assert [u.entity_id for u in parse_updates(states)] == ["update.x"]
+
+
+def test_parse_updates_skips_restored_ghost_without_tag():
+    # Reproduces the restart-loop hole: a restored mirror is `unavailable` AND has lost its
+    # hasm_mirror attribute, so the tag filter alone would NOT catch it.
+    states = [
+        {"entity_id": "update.bonoha01_update_core", "state": "unavailable", "attributes": {}},
+    ]
+    assert parse_updates(states) == []
+
+
 def test_version_of_matches_by_substring_with_update_suffix():
     states = [
         {

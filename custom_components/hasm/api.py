@@ -48,6 +48,12 @@ def parse_updates(states: list[dict]) -> list[HAUpdate]:
         entity_id = s.get("entity_id", "")
         if not entity_id.startswith("update."):
             continue
+        if s.get("state") == "unavailable":
+            # Restored/ghost entities (e.g. our own mirrors right after a restart) lose their
+            # attributes — including hasm_mirror — so they would bypass the tag filter and get
+            # re-mirrored. A genuinely unavailable update is not actionable anyway. Skip by state
+            # (reliable: survives attribute stripping), closing the self-supervision/chain loop.
+            continue
         attrs = s.get("attributes", {}) or {}
         if attrs.get("hasm_mirror"):
             # HASM mirror: never re-mirror our own entities (loop prevention,
