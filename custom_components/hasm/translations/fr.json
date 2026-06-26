@@ -16,6 +16,10 @@
           "token": "Jeton d'accès longue durée",
           "verify_ssl": "Vérifier le certificat SSL"
         }
+      },
+      "loop_warning": {
+        "title": "Cette instance fait tourner HASM",
+        "description": "L'instance que vous ajoutez fait elle-même tourner HASM. S'il s'agit de cette instance même, ou qu'elle pointe vers ici, des entités de mise à jour peuvent se dupliquer en boucle. Ne continuez que s'il s'agit d'une instance distincte en aval. Validez pour confirmer."
       }
     },
     "error": {
