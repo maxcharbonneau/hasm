@@ -41,17 +41,31 @@
     }
   },
   "entity": {
-    "binary_sensor": { "connectivity": { "name": "Connectivité" } },
+    "binary_sensor": {
+      "connectivity": { "name": "Connectivité" },
+      "backup_problem": { "name": "Problème de sauvegarde ({agent})" },
+      "backup_in_progress": { "name": "Sauvegarde en cours" }
+    },
     "sensor": {
+      "backup_last_completed": { "name": "Dernière sauvegarde automatique" },
+      "backup_next": { "name": "Prochaine sauvegarde automatique" },
       "core_version": { "name": "Version Core" },
       "os_version": { "name": "Version OS" },
       "supervisor_version": { "name": "Version Supervisor" },
       "updates_available": { "name": "Mises à jour disponibles" },
-      "error_count": { "name": "Nombre d'erreurs" }
+      "error_count": { "name": "Nombre d'erreurs" },
+      "backup_size": { "name": "Taille des sauvegardes ({agent})" },
+      "backup_last_full": { "name": "Dernière sauvegarde complète ({agent})" },
+      "backup_count": { "name": "Nombre de sauvegardes ({agent})" },
+      "disk_free": { "name": "Espace disque libre" },
+      "disk_used": { "name": "Espace disque utilisé" },
+      "disk_total": { "name": "Disque total" },
+      "disk_used_percent": { "name": "Disque utilisé %" }
     },
     "button": {
       "restart": { "name": "Redémarrer" },
-      "reload_config": { "name": "Recharger la configuration" }
+      "reload_config": { "name": "Recharger la configuration" },
+      "backup_now": { "name": "Sauvegarder maintenant" }
     }
   },
   "services": {

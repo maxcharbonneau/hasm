@@ -3,18 +3,28 @@
     "binary_sensor": {
       "connectivity": { "default": "mdi:lan-connect" },
       "backup_problem": { "default": "mdi:alert-circle" },
-      "backup_in_progress": { "default": "mdi:backup-restore" }
+      "backup_in_progress": { "default": "mdi:progress-upload" }
     },
     "sensor": {
       "core_version":       { "default": "mdi:home-assistant" },
       "os_version":         { "default": "mdi:chip" },
       "supervisor_version": { "default": "mdi:shield-home" },
       "updates_available":  { "default": "mdi:package-up" },
-      "error_count":        { "default": "mdi:alert-circle" }
+      "error_count":        { "default": "mdi:alert-circle" },
+      "backup_size":           { "default": "mdi:database" },
+      "backup_last_full":      { "default": "mdi:backup-restore" },
+      "backup_count":          { "default": "mdi:database-outline" },
+      "backup_last_completed": { "default": "mdi:backup-restore" },
+      "backup_next":           { "default": "mdi:clock-outline" },
+      "disk_free":             { "default": "mdi:harddisk" },
+      "disk_used":             { "default": "mdi:harddisk" },
+      "disk_total":            { "default": "mdi:harddisk" },
+      "disk_used_percent":     { "default": "mdi:gauge" }
     },
     "button": {
       "restart":       { "default": "mdi:restart" },
-      "reload_config": { "default": "mdi:reload" }
+      "reload_config": { "default": "mdi:reload" },
+      "backup_now":    { "default": "mdi:backup-restore" }
     }
   }
 }
