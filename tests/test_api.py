@@ -285,6 +285,52 @@ async def test_snapshot_includes_backups_and_storage(client, aioclient_mock, mon
     assert snap.storage.total_bytes == int(10.0 * 1024**3)
 
 
+async def test_snapshot_storage_falls_back_to_systemmonitor(
+    client, aioclient_mock, monkeypatch
+):
+    # When Supervisor host/info is unavailable, storage falls back to systemmonitor states.
+    aioclient_mock.get(
+        "https://ha.example/api/config",
+        json={"version": "2026.6.1", "location_name": "X", "components": []},
+    )
+    aioclient_mock.get(
+        "https://ha.example/api/states",
+        json=[
+            {
+                "entity_id": "sensor.system_monitor_disk_free",
+                "state": "53.7",
+                "attributes": {"device_class": "data_size", "unit_of_measurement": "GiB"},
+            },
+            {
+                "entity_id": "sensor.system_monitor_disk_usage",
+                "state": "46.0",
+                "attributes": {"unit_of_measurement": "%"},
+            },
+        ],
+    )
+    aioclient_mock.get("https://ha.example/api/hassio/host/info", status=500)
+
+    async def fake_log(self):
+        return []
+
+    async def fake_agents(self):
+        return {"agents": []}
+
+    async def fake_binfo(self):
+        return {"state": "idle", "backups": [], "agent_errors": {}}
+
+    monkeypatch.setattr(HasmApiClient, "async_get_system_log", fake_log)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_agents_raw", fake_agents)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_info_raw", fake_binfo)
+
+    snap = await client.async_get_snapshot()
+    assert snap.health.online is True
+    assert snap.storage is not None
+    assert snap.storage.source == "systemmonitor"
+    assert snap.storage.free_bytes == int(53.7 * 1024**3)
+    assert round(snap.storage.used_percent, 1) == 46.0
+
+
 async def test_test_connection_ok(client, aioclient_mock):
     aioclient_mock.get("https://ha.example/api/", json={"message": "API running."})
     assert await client.async_test_connection() is True
