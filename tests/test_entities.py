@@ -210,8 +210,19 @@ def test_icons_json_keys_match_translation_keys():
     """Local structural validation of icons.json (hassfest only runs in CI).
 
     Each entity.<platform>.<key> key in icons.json must match a translation_key
-    actually declared by a non-dynamic entity, and vice versa. Catches a key
-    typo before hassfest rejects it in CI.
+    actually declared by an entity, and vice versa. Catches a key typo before
+    hassfest rejects it in CI.
+
+    Translation keys come from three places, all collected here:
+      * static description tables (SENSORS / BUTTONS),
+      * `_attr_translation_key = "..."` literals on entity classes (the
+        per-agent dynamic sensors, the backup-now button, binary sensors),
+      * keys passed positionally into the global/storage sensor constructors
+        (e.g. `HasmGlobalBackupSensor(coordinator, "backup_next", ...)`), which
+        the entity sets as its translation_key in __init__.
+    We read literals from source because HA exposes _attr_translation_key as a
+    descriptor on Entity (reading via the class yields the property, not the
+    value); the source is the truth.
     """
     import re
 
@@ -221,16 +232,26 @@ def test_icons_json_keys_match_translation_keys():
     base = Path(__file__).resolve().parents[1] / "custom_components" / "hasm"
     icons = json.loads((base / "icons.json").read_text(encoding="utf-8"))
 
-    # binary_sensor: translation_key set as a literal attribute. We read it from
-    # the source because HA exposes _attr_translation_key as a descriptor on Entity
-    # (reading via the class = property, not the value); the source is the truth.
-    bs_src = (base / "binary_sensor.py").read_text(encoding="utf-8")
-    bs_keys = set(re.findall(r'_attr_translation_key\s*=\s*"([^"]+)"', bs_src))
+    def attr_keys(filename: str) -> set[str]:
+        src = (base / filename).read_text(encoding="utf-8")
+        return set(re.findall(r'_attr_translation_key\s*=\s*"([^"]+)"', src))
+
+    sensor_src = (base / "sensor.py").read_text(encoding="utf-8")
+    # Global + storage sensors take their translation_key as a string literal
+    # immediately after the coordinator argument.
+    ctor_keys = set(
+        re.findall(
+            r'Hasm(?:GlobalBackup|Storage)Sensor\(\s*coordinator,\s*"([^"]+)"',
+            sensor_src,
+        )
+    )
 
     expected = {
-        "binary_sensor": bs_keys,
-        "sensor": {d.translation_key for d in SENSORS},
-        "button": {d.translation_key for d in BUTTONS},
+        "binary_sensor": attr_keys("binary_sensor.py"),
+        "sensor": {d.translation_key for d in SENSORS}
+        | attr_keys("sensor.py")
+        | ctor_keys,
+        "button": {d.translation_key for d in BUTTONS} | attr_keys("button.py"),
     }
     actual = {platform: set(keys.keys()) for platform, keys in icons["entity"].items()}
     assert actual == expected, f"icons.json {actual} != entities {expected}"
@@ -301,8 +322,8 @@ async def test_global_backup_sensors(hass, entry):
                           next_at="2026-06-21T03:00:00+00:00")
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
     await _setup_with_snapshot(hass, entry, snap)
-    assert "2026-06-20" in hass.states.get("sensor.maison_backup_last_completed").state
-    assert "2026-06-21" in hass.states.get("sensor.maison_backup_next").state
+    assert "2026-06-20" in hass.states.get("sensor.maison_last_automatic_backup").state
+    assert "2026-06-21" in hass.states.get("sensor.maison_next_automatic_backup").state
     assert hass.states.get("binary_sensor.maison_backup_in_progress").state == "off"
 
 
@@ -316,7 +337,7 @@ async def test_backup_now_button_calls_service(hass, entry):
          patch("custom_components.hasm.HasmApiClient.async_call_service", new=call_mock):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-        btns = [e for e in hass.states.async_entity_ids("button") if "backup_now" in e]
+        btns = [e for e in hass.states.async_entity_ids("button") if "back_up_now" in e]
         assert btns
         await hass.services.async_call("button", "press", {"entity_id": btns[0]}, blocking=True)
     call_mock.assert_awaited_once_with("backup", "create_automatic")
@@ -326,7 +347,7 @@ async def test_backup_now_button_unavailable_when_running(hass, entry):
     ov = HABackupOverview(state="create_backup", in_progress=True)
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
     await _setup_with_snapshot(hass, entry, snap)
-    btn = [e for e in hass.states.async_entity_ids("button") if "backup_now" in e][0]
+    btn = [e for e in hass.states.async_entity_ids("button") if "back_up_now" in e][0]
     assert hass.states.get(btn).state == "unavailable"
 
 
@@ -363,7 +384,9 @@ async def test_storage_sensors(hass, entry):
     )
     await _setup_with_snapshot(hass, entry, snap)
     assert hass.states.get("sensor.maison_disk_free").state == str(6*1024**3)
-    assert hass.states.get("sensor.maison_disk_used_percent").state == "40.0"
+    # "Disk used %" slugifies to disk_used, colliding with the "Disk used" sensor,
+    # so HA disambiguates the percent sensor's entity_id with a _2 suffix.
+    assert hass.states.get("sensor.maison_disk_used_2").state == "40.0"
 
 
 async def test_storage_sensors_absent_when_no_source(hass, entry):

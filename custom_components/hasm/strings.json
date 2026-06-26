@@ -47,8 +47,8 @@
       "backup_in_progress": { "name": "Backup in progress" }
     },
     "sensor": {
-      "backup_last_completed": { "name": "Backup last completed" },
-      "backup_next": { "name": "Backup next" },
+      "backup_last_completed": { "name": "Last automatic backup" },
+      "backup_next": { "name": "Next automatic backup" },
       "core_version": { "name": "Core version" },
       "os_version": { "name": "OS version" },
       "supervisor_version": { "name": "Supervisor version" },
@@ -60,12 +60,12 @@
       "disk_free": { "name": "Disk free" },
       "disk_used": { "name": "Disk used" },
       "disk_total": { "name": "Disk total" },
-      "disk_used_percent": { "name": "Disk used percent" }
+      "disk_used_percent": { "name": "Disk used %" }
     },
     "button": {
       "restart": { "name": "Restart" },
       "reload_config": { "name": "Reload configuration" },
-      "backup_now": { "name": "Backup now" }
+      "backup_now": { "name": "Back up now" }
     }
   },
   "services": {
