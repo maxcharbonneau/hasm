@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -27,13 +26,11 @@ BUTTONS: tuple[HasmButtonDescription, ...] = (
         key="restart",
         translation_key="restart",
         device_class="restart",
-        entity_category=EntityCategory.CONFIG,
         press_fn=lambda client: client.async_call_service("homeassistant", "restart"),
     ),
     HasmButtonDescription(
         key="reload_config",
         translation_key="reload_config",
-        entity_category=EntityCategory.CONFIG,
         press_fn=lambda client: client.async_call_service(
             "homeassistant", "reload_core_config"
         ),

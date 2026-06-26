@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.hasm.const import DOMAIN
@@ -379,6 +380,21 @@ async def test_restart_button_calls_homeassistant_restart(hass, entry):
             "button", "press", {"entity_id": buttons[0]}, blocking=True
         )
     call_mock.assert_awaited_once_with("homeassistant", "restart")
+
+
+async def test_restart_button_is_a_control_not_config(hass, entry):
+    # Restart/reload live in the device's "Controls" section: absence of an
+    # entity_category (HA has no "control" category) places actionable entities there.
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.3"))
+    await _setup_with_snapshot(hass, entry, snap)
+    entity_id = next(
+        e
+        for e in hass.states.async_entity_ids("button")
+        if "maison" in e and "restart" in e
+    )
+    reg_entry = er.async_get(hass).async_get(entity_id)
+    assert reg_entry is not None
+    assert reg_entry.entity_category is None
 
 
 async def test_storage_sensors(hass, entry):
