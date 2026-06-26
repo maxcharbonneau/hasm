@@ -163,6 +163,76 @@ def summarize_backups(agents_info: dict, backup_info: dict) -> HABackupOverview:
     )
 
 
+_GB = 1024**3
+_UNIT_TO_BYTES = {
+    "b": 1,
+    "bytes": 1,
+    "kb": 1000,
+    "kib": 1024,
+    "mb": 1000**2,
+    "mib": 1024**2,
+    "gb": 1000**3,
+    "gib": 1024**3,
+    "tb": 1000**4,
+    "tib": 1024**4,
+}
+
+
+def parse_host_storage(host_info: dict) -> HAStorage | None:
+    data = (host_info or {}).get("data", host_info) or {}
+    total, used, free = (
+        data.get("disk_total"),
+        data.get("disk_used"),
+        data.get("disk_free"),
+    )
+    if total is None and free is None:
+        return None
+    # Supervisor reports GB floats.
+    tb = int(total * _GB) if total is not None else None
+    ub = int(used * _GB) if used is not None else None
+    fb = int(free * _GB) if free is not None else None
+    pct = round(used / total * 100, 1) if (total and used is not None) else None
+    return HAStorage(
+        source="host_info", free_bytes=fb, used_bytes=ub, total_bytes=tb, used_percent=pct
+    )
+
+
+def _to_bytes(state: str, unit: str | None) -> int | None:
+    try:
+        val = float(state)
+    except (TypeError, ValueError):
+        return None
+    return int(val * _UNIT_TO_BYTES.get((unit or "").lower(), 1))
+
+
+def parse_systemmonitor_storage(states: list[dict]) -> HAStorage | None:
+    free = pct = used = total = None
+    for s in states or []:
+        eid = (s.get("entity_id") or "").lower()
+        if "disk" not in eid and "system_monitor" not in eid:
+            continue
+        attrs = s.get("attributes") or {}
+        unit = attrs.get("unit_of_measurement")
+        if "free" in eid and free is None:
+            free = _to_bytes(s.get("state"), unit)
+        elif ("usage" in eid or "use_percent" in eid or unit == "%") and pct is None:
+            try:
+                pct = float(s.get("state"))
+            except (TypeError, ValueError):
+                pct = None
+        elif "used" in eid and used is None:
+            used = _to_bytes(s.get("state"), unit)
+    if free is None and pct is None and used is None:
+        return None
+    return HAStorage(
+        source="systemmonitor",
+        free_bytes=free,
+        used_bytes=used,
+        total_bytes=total,
+        used_percent=pct,
+    )
+
+
 # --- Client (REST + WebSocket) -------------------------------------------------
 
 

@@ -201,6 +201,47 @@ def test_summarize_backups_in_progress_and_problem():
     assert by["hassio.local"].has_problem is False
 
 
+def test_parse_host_storage_gb_to_bytes():
+    from custom_components.hasm.api import parse_host_storage
+
+    # Supervisor host/info: disk sizes are GB floats
+    host = {"data": {"disk_total": 100.0, "disk_used": 40.0, "disk_free": 60.0}}
+    st = parse_host_storage(host)
+    assert st.source == "host_info"
+    assert st.total_bytes == int(100.0 * 1024**3)
+    assert st.free_bytes == int(60.0 * 1024**3)
+    assert round(st.used_percent, 1) == 40.0
+
+
+def test_parse_systemmonitor_storage_from_states():
+    from custom_components.hasm.api import parse_systemmonitor_storage
+
+    states = [
+        {
+            "entity_id": "sensor.system_monitor_disk_free",
+            "state": "53.7",
+            "attributes": {"device_class": "data_size", "unit_of_measurement": "GiB"},
+        },
+        {
+            "entity_id": "sensor.system_monitor_disk_usage",
+            "state": "46.0",
+            "attributes": {"unit_of_measurement": "%"},
+        },
+    ]
+    st = parse_systemmonitor_storage(states)
+    assert st is not None and st.source == "systemmonitor"
+    assert st.free_bytes == int(53.7 * 1024**3)  # GiB -> bytes
+    assert round(st.used_percent, 1) == 46.0
+
+
+def test_parse_systemmonitor_storage_absent():
+    from custom_components.hasm.api import parse_systemmonitor_storage
+
+    assert (
+        parse_systemmonitor_storage([{"entity_id": "sensor.cpu", "state": "5"}]) is None
+    )
+
+
 async def test_test_connection_ok(client, aioclient_mock):
     aioclient_mock.get("https://ha.example/api/", json={"message": "API running."})
     assert await client.async_test_connection() is True
