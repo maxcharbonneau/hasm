@@ -337,16 +337,16 @@ async def test_backup_now_button_calls_service(hass, entry):
     ov = HABackupOverview(state="idle", in_progress=False)
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
     entry.add_to_hass(hass)
-    call_mock = AsyncMock()
+    trigger_mock = AsyncMock(return_value="accepted")
     with patch("custom_components.hasm.HasmApiClient.async_get_snapshot",
                new=AsyncMock(return_value=snap)), \
-         patch("custom_components.hasm.HasmApiClient.async_call_service", new=call_mock):
+         patch("custom_components.hasm.HasmApiClient.async_trigger_backup", new=trigger_mock):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
         btns = [e for e in hass.states.async_entity_ids("button") if "back_up_now" in e]
         assert btns
         await hass.services.async_call("button", "press", {"entity_id": btns[0]}, blocking=True)
-    call_mock.assert_awaited_once_with("backup", "create_automatic")
+    trigger_mock.assert_awaited_once_with()
 
 
 async def test_backup_now_button_unavailable_when_running(hass, entry):

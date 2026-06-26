@@ -19,7 +19,7 @@ from .exceptions import (
     HasmError,
     HasmResponseError,
 )
-from .const import BACKUP_BUSY_STATES
+from .const import BACKUP_BUSY_STATES, BACKUP_TRIGGER_DOMAIN, BACKUP_TRIGGER_SERVICE
 from .models import (
     HAAgentBackupSummary,
     HABackupAgent,
@@ -357,6 +357,31 @@ class HasmApiClient:
         except asyncio.TimeoutError:
             # The command may have been sent; the install continues on the HA side.
             # NOT a failure.
+            return "initiated_background"
+        except aiohttp.ClientError as e:
+            raise HasmConnectionError(f"Instance unreachable: {e}") from e
+
+    async def async_trigger_backup(self) -> str:
+        """Trigger backup.create_automatic on the remote instance.
+
+        Returns 'accepted' (2xx) or 'initiated_background' (read-timeout: the backup
+        runs in the background server-side, exactly like a long update install — NOT an
+        error). Raises only on auth/4xx/connect failures."""
+        url = self._base_url + f"/api/services/{BACKUP_TRIGGER_DOMAIN}/{BACKUP_TRIGGER_SERVICE}"
+        try:
+            async with self._session.post(
+                url, headers=self._headers, ssl=self._ssl, json={},
+                allow_redirects=False,
+                timeout=aiohttp.ClientTimeout(sock_connect=10.0, total=15.0),
+            ) as resp:
+                if resp.status in (401, 403):
+                    raise HasmAuthError("Token rejected by the Home Assistant instance")
+                if resp.status >= 400:
+                    raise HasmResponseError(
+                        f"Home Assistant refused the backup trigger (HTTP {resp.status})")
+                await resp.read()
+                return "accepted"
+        except asyncio.TimeoutError:
             return "initiated_background"
         except aiohttp.ClientError as e:
             raise HasmConnectionError(f"Instance unreachable: {e}") from e

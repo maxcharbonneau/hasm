@@ -379,6 +379,16 @@ async def test_install_update_read_timeout_returns_background(client, aioclient_
     assert result == "initiated_background"
 
 
+async def test_trigger_backup_read_timeout_returns_background(client, aioclient_mock):
+    # A long backup blocks past our read timeout; the backup still runs server-side,
+    # exactly like a long update install. The read-timeout is success, not an error.
+    aioclient_mock.post(
+        "https://ha.example/api/services/backup/create_automatic",
+        exc=asyncio.TimeoutError(),
+    )
+    assert await client.async_trigger_backup() == "initiated_background"
+
+
 class _FakeWS:
     """Minimal WebSocket: returns the `frames` in order via receive_str."""
 
