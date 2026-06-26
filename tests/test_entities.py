@@ -282,6 +282,18 @@ async def test_backup_per_destination_sensors(hass, entry):
     assert last is not None and "2026-06-20" in last.state
 
 
+async def test_backup_problem_binary_sensor(hass, entry):
+    ov = HABackupOverview(
+        state="idle",
+        agents=(HABackupAgent("cloud.cloud", "Cloud"),),
+        per_agent=(HAAgentBackupSummary("cloud.cloud", has_problem=True),),
+    )
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
+    await _setup_with_snapshot(hass, entry, snap)
+    state = hass.states.get("binary_sensor.maison_backup_problem_cloud")
+    assert state is not None and state.state == "on"
+
+
 async def test_restart_button_calls_homeassistant_restart(hass, entry):
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.3"))
     entry.add_to_hass(hass)
