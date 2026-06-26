@@ -12,6 +12,7 @@ from custom_components.hasm.models import (
     HAAgentBackupSummary,
     HABackupAgent,
     HABackupOverview,
+    HAStorage,
 )
 
 
@@ -352,3 +353,20 @@ async def test_restart_button_calls_homeassistant_restart(hass, entry):
             "button", "press", {"entity_id": buttons[0]}, blocking=True
         )
     call_mock.assert_awaited_once_with("homeassistant", "restart")
+
+
+async def test_storage_sensors(hass, entry):
+    snap = HasmSnapshot(
+        health=HAHealth(online=True, core_version="2026.6.1"),
+        storage=HAStorage(source="host_info", free_bytes=6*1024**3,
+                          used_bytes=4*1024**3, total_bytes=10*1024**3, used_percent=40.0),
+    )
+    await _setup_with_snapshot(hass, entry, snap)
+    assert hass.states.get("sensor.maison_disk_free").state == str(6*1024**3)
+    assert hass.states.get("sensor.maison_disk_used_percent").state == "40.0"
+
+
+async def test_storage_sensors_absent_when_no_source(hass, entry):
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), storage=None)
+    await _setup_with_snapshot(hass, entry, snap)
+    assert hass.states.get("sensor.maison_disk_free") is None

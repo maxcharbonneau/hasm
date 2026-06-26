@@ -73,6 +73,14 @@ async def async_setup_entry(
         HasmGlobalBackupSensor(coordinator, "backup_next", "next_at"),
     ])
 
+    if coordinator.data and coordinator.data.storage is not None:
+        async_add_entities([
+            HasmStorageSensor(coordinator, "disk_free", "free_bytes", SensorDeviceClass.DATA_SIZE, "B"),
+            HasmStorageSensor(coordinator, "disk_used", "used_bytes", SensorDeviceClass.DATA_SIZE, "B"),
+            HasmStorageSensor(coordinator, "disk_total", "total_bytes", SensorDeviceClass.DATA_SIZE, "B"),
+            HasmStorageSensor(coordinator, "disk_used_percent", "used_percent", None, "%"),
+        ])
+
     known_agents: set[str] = set()
 
     @callback
@@ -129,6 +137,21 @@ class HasmGlobalBackupSensor(HasmEntity, SensorEntity):
             return None
         raw = getattr(ov, self._field)
         return dt_util.parse_datetime(raw) if raw else None
+
+
+class HasmStorageSensor(HasmEntity, SensorEntity):
+    def __init__(self, coordinator, key, attr, device_class, unit) -> None:
+        super().__init__(coordinator, key)
+        self._attr = attr
+        self._attr_translation_key = key
+        self._attr_device_class = device_class
+        self._attr_native_unit_of_measurement = unit
+        self._attr_state_class = "measurement"
+
+    @property
+    def native_value(self):
+        st = self.coordinator.data.storage if self.coordinator.data else None
+        return getattr(st, self._attr) if st else None
 
 
 class _HasmAgentSensorBase(HasmEntity, SensorEntity):
