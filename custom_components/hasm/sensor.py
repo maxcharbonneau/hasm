@@ -68,6 +68,10 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data.coordinator
     async_add_entities(HasmSensor(coordinator, desc) for desc in SENSORS)
+    async_add_entities([
+        HasmGlobalBackupSensor(coordinator, "backup_last_completed", "last_completed_at"),
+        HasmGlobalBackupSensor(coordinator, "backup_next", "next_at"),
+    ])
 
     known_agents: set[str] = set()
 
@@ -107,6 +111,24 @@ class HasmSensor(HasmEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
+
+
+class HasmGlobalBackupSensor(HasmEntity, SensorEntity):
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator, key: str, field: str) -> None:
+        super().__init__(coordinator, key)
+        self._attr_translation_key = key
+        self._field = field
+
+    @property
+    def native_value(self):
+        from homeassistant.util import dt as dt_util
+        ov = self.coordinator.data.backups if self.coordinator.data else None
+        if ov is None:
+            return None
+        raw = getattr(ov, self._field)
+        return dt_util.parse_datetime(raw) if raw else None
 
 
 class _HasmAgentSensorBase(HasmEntity, SensorEntity):

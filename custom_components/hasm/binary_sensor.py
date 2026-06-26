@@ -19,7 +19,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: HasmConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data.coordinator
-    async_add_entities([HasmConnectivity(coordinator)])
+    async_add_entities([HasmConnectivity(coordinator), HasmBackupInProgress(coordinator)])
 
     known_agents: set[str] = set()
 
@@ -58,6 +58,21 @@ class HasmConnectivity(HasmEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return bool(self.coordinator.data and self.coordinator.data.health.online)
+
+
+class HasmBackupInProgress(HasmEntity, BinarySensorEntity):
+    _attr_translation_key = "backup_in_progress"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "backup_in_progress")
+
+    @property
+    def is_on(self) -> bool:
+        return bool(
+            self.coordinator.data
+            and self.coordinator.data.backups
+            and self.coordinator.data.backups.in_progress
+        )
 
 
 class HasmBackupProblem(HasmEntity, BinarySensorEntity):
