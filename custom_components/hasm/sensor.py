@@ -172,15 +172,19 @@ class _HasmAgentSensorBase(HasmEntity, SensorEntity):
 class HasmBackupSizeSensor(_HasmAgentSensorBase):
     _key_prefix = "backup_size"
     _attr_translation_key = "backup_size"
-    _attr_device_class = SensorDeviceClass.DATA_SIZE
-    _attr_native_unit_of_measurement = "B"
-    _attr_suggested_unit_of_measurement = "MB"
+    # Presented directly in MB. We intentionally do NOT use device_class DATA_SIZE:
+    # its unit conversion is seeded from the entity registry on first registration, so a
+    # suggested MB unit does not apply to entities already registered under an earlier
+    # version (they stayed in bytes). A plain MB native unit is deterministic on both
+    # fresh installs and updates.
+    _attr_native_unit_of_measurement = "MB"
     _attr_suggested_display_precision = 1
+    _attr_state_class = "measurement"
 
     @property
     def native_value(self):
         s = self._summary()
-        return s.total_size_bytes if s else None
+        return round(s.total_size_bytes / 1_000_000, 1) if s else None
 
 
 class HasmBackupLastFullSensor(_HasmAgentSensorBase):
