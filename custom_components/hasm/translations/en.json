@@ -60,7 +60,8 @@
     },
     "button": {
       "restart": { "name": "Restart" },
-      "reload_config": { "name": "Reload configuration" }
+      "reload_config": { "name": "Reload configuration" },
+      "backup_now": { "name": "Backup now" }
     }
   },
   "services": {

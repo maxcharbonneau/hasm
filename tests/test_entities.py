@@ -305,6 +305,30 @@ async def test_global_backup_sensors(hass, entry):
     assert hass.states.get("binary_sensor.maison_backup_in_progress").state == "off"
 
 
+async def test_backup_now_button_calls_service(hass, entry):
+    ov = HABackupOverview(state="idle", in_progress=False)
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
+    entry.add_to_hass(hass)
+    call_mock = AsyncMock()
+    with patch("custom_components.hasm.HasmApiClient.async_get_snapshot",
+               new=AsyncMock(return_value=snap)), \
+         patch("custom_components.hasm.HasmApiClient.async_call_service", new=call_mock):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        btns = [e for e in hass.states.async_entity_ids("button") if "backup_now" in e]
+        assert btns
+        await hass.services.async_call("button", "press", {"entity_id": btns[0]}, blocking=True)
+    call_mock.assert_awaited_once_with("backup", "create_automatic")
+
+
+async def test_backup_now_button_unavailable_when_running(hass, entry):
+    ov = HABackupOverview(state="create_backup", in_progress=True)
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
+    await _setup_with_snapshot(hass, entry, snap)
+    btn = [e for e in hass.states.async_entity_ids("button") if "backup_now" in e][0]
+    assert hass.states.get(btn).state == "unavailable"
+
+
 async def test_restart_button_calls_homeassistant_restart(hass, entry):
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.3"))
     entry.add_to_hass(hass)
