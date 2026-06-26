@@ -8,6 +8,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.hasm.const import DOMAIN
 from custom_components.hasm.models import HAHealth, HasmSnapshot
 from custom_components.hasm.models import HAUpdate
+from custom_components.hasm.models import (
+    HAAgentBackupSummary,
+    HABackupAgent,
+    HABackupOverview,
+)
 
 
 @pytest.fixture
@@ -253,6 +258,28 @@ async def test_update_entity_icon_and_no_picture(hass, entry):
     state = hass.states.get(update_ids[0])
     assert state.attributes.get("icon") == "mdi:update"
     assert state.attributes.get("entity_picture") is None
+
+
+def _overview():
+    return HABackupOverview(
+        state="idle", in_progress=False,
+        last_completed_at="2026-06-20T03:00:00+00:00",
+        agents=(HABackupAgent("hassio.local", "Local"),),
+        per_agent=(HAAgentBackupSummary("hassio.local",
+                   last_full_at="2026-06-20T03:00:00+00:00",
+                   total_size_bytes=1048576, backup_count=4),),
+    )
+
+
+async def test_backup_per_destination_sensors(hass, entry):
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"),
+                        backups=_overview())
+    await _setup_with_snapshot(hass, entry, snap)
+    # entity_id derives from the resolved friendly name (agent name "Local").
+    size = hass.states.get("sensor.maison_backup_size_local")
+    last = hass.states.get("sensor.maison_last_full_backup_local")
+    assert size is not None and size.state == "1048576"
+    assert last is not None and "2026-06-20" in last.state
 
 
 async def test_restart_button_calls_homeassistant_restart(hass, entry):
