@@ -242,6 +242,49 @@ def test_parse_systemmonitor_storage_absent():
     )
 
 
+async def test_get_host_info_ok(client, aioclient_mock):
+    aioclient_mock.get(
+        "https://ha.example/api/hassio/host/info",
+        json={"result": "ok", "data": {"disk_total": 32.0, "disk_free": 8.0}},
+    )
+    data = await client.async_get_host_info()
+    assert data["data"]["disk_total"] == 32.0
+
+
+async def test_snapshot_includes_backups_and_storage(client, aioclient_mock, monkeypatch):
+    aioclient_mock.get(
+        "https://ha.example/api/config",
+        json={"version": "2026.6.1", "location_name": "X", "components": ["hassio"]},
+    )
+    aioclient_mock.get("https://ha.example/api/states", json=[])
+    aioclient_mock.get(
+        "https://ha.example/api/hassio/host/info",
+        json={
+            "result": "ok",
+            "data": {"disk_total": 10.0, "disk_used": 4.0, "disk_free": 6.0},
+        },
+    )
+
+    async def fake_log(self):
+        return []
+
+    async def fake_agents(self):
+        return {"agents": [{"agent_id": "hassio.local", "name": "Local"}]}
+
+    async def fake_binfo(self):
+        return {"state": "idle", "backups": [], "agent_errors": {}}
+
+    monkeypatch.setattr(HasmApiClient, "async_get_system_log", fake_log)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_agents_raw", fake_agents)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_info_raw", fake_binfo)
+
+    snap = await client.async_get_snapshot()
+    assert snap.health.online is True
+    assert snap.backups is not None and snap.backups.state == "idle"
+    assert snap.storage is not None and snap.storage.source == "host_info"
+    assert snap.storage.total_bytes == int(10.0 * 1024**3)
+
+
 async def test_test_connection_ok(client, aioclient_mock):
     aioclient_mock.get("https://ha.example/api/", json={"message": "API running."})
     assert await client.async_test_connection() is True
@@ -282,6 +325,9 @@ async def test_snapshot_online_with_degraded_states(
     aioclient_mock.get(
         "https://ha.example/api/states", status=500
     )  # states KO -> degraded
+    aioclient_mock.get(
+        "https://ha.example/api/hassio/host/info", status=500
+    )  # host/info KO -> no storage
 
     async def fake_log(self):
         raise HasmConnectionError("ws down")
