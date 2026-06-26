@@ -16,6 +16,10 @@
           "token": "Long-Lived Access Token",
           "verify_ssl": "Verify SSL certificate"
         }
+      },
+      "loop_warning": {
+        "title": "This instance is running HASM",
+        "description": "The instance you are adding is itself running HASM. If this is this very instance, or it points back here, mirrored update entities can duplicate in a loop. Only continue if this is a distinct downstream instance. Submit to confirm."
       }
     },
     "error": {
