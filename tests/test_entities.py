@@ -410,3 +410,20 @@ async def test_storage_sensors_absent_when_no_source(hass, entry):
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), storage=None)
     await _setup_with_snapshot(hass, entry, snap)
     assert hass.states.get("sensor.maison_disk_free") is None
+
+
+async def test_backup_agent_sensors_capped(hass, entry):
+    # More than MAX_BACKUP_AGENTS destinations must not create an unbounded number of entities.
+    from custom_components.hasm.const import MAX_BACKUP_AGENTS
+
+    n = MAX_BACKUP_AGENTS + 5
+    agents = tuple(HABackupAgent(f"x.agent_{i}", f"Agent {i}") for i in range(n))
+    per = tuple(
+        HAAgentBackupSummary(f"x.agent_{i}", total_size_bytes=1000, backup_count=1)
+        for i in range(n)
+    )
+    ov = HABackupOverview(state="idle", agents=agents, per_agent=per)
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
+    await _setup_with_snapshot(hass, entry, snap)
+    sizes = [e for e in hass.states.async_entity_ids("sensor") if "backup_size_agent" in e]
+    assert len(sizes) == MAX_BACKUP_AGENTS
