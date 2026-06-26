@@ -6,14 +6,17 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
 )
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from . import HasmConfigEntry
+from .const import MAX_BACKUP_AGENTS
 from .entity import HasmEntity
 from .models import HasmSnapshot
 
@@ -66,6 +69,31 @@ async def async_setup_entry(
     coordinator = entry.runtime_data.coordinator
     async_add_entities(HasmSensor(coordinator, desc) for desc in SENSORS)
 
+    known_agents: set[str] = set()
+
+    @callback
+    def _add_backup_agents() -> None:
+        ov = coordinator.data.backups if coordinator.data else None
+        if ov is None:
+            return
+        new = []
+        for ag in ov.agents:
+            if ag.agent_id in known_agents:
+                continue
+            if len(known_agents) >= MAX_BACKUP_AGENTS:
+                break
+            known_agents.add(ag.agent_id)
+            new.extend([
+                HasmBackupSizeSensor(coordinator, ag),
+                HasmBackupLastFullSensor(coordinator, ag),
+                HasmBackupCountSensor(coordinator, ag),
+            ])
+        if new:
+            async_add_entities(new)
+
+    _add_backup_agents()
+    entry.async_on_unload(coordinator.async_add_listener(_add_backup_agents))
+
 
 class HasmSensor(HasmEntity, SensorEntity):
     entity_description: HasmSensorDescription
@@ -79,3 +107,53 @@ class HasmSensor(HasmEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
+
+
+class _HasmAgentSensorBase(HasmEntity, SensorEntity):
+    _key_prefix: str
+
+    def __init__(self, coordinator, agent) -> None:
+        super().__init__(coordinator, f"{self._key_prefix}_{slugify(agent.agent_id)}")
+        self._agent_id = agent.agent_id
+        self._attr_translation_placeholders = {"agent": agent.name or agent.agent_id}
+
+    def _summary(self):
+        ov = self.coordinator.data.backups if self.coordinator.data else None
+        if ov is None:
+            return None
+        return next((s for s in ov.per_agent if s.agent_id == self._agent_id), None)
+
+
+class HasmBackupSizeSensor(_HasmAgentSensorBase):
+    _key_prefix = "backup_size"
+    _attr_translation_key = "backup_size"
+    _attr_device_class = SensorDeviceClass.DATA_SIZE
+    _attr_native_unit_of_measurement = "B"
+
+    @property
+    def native_value(self):
+        s = self._summary()
+        return s.total_size_bytes if s else None
+
+
+class HasmBackupLastFullSensor(_HasmAgentSensorBase):
+    _key_prefix = "backup_last_full"
+    _attr_translation_key = "backup_last_full"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    @property
+    def native_value(self):
+        from homeassistant.util import dt as dt_util
+        s = self._summary()
+        return dt_util.parse_datetime(s.last_full_at) if (s and s.last_full_at) else None
+
+
+class HasmBackupCountSensor(_HasmAgentSensorBase):
+    _key_prefix = "backup_count"
+    _attr_translation_key = "backup_count"
+    _attr_state_class = "measurement"
+
+    @property
+    def native_value(self):
+        s = self._summary()
+        return s.backup_count if s else None
