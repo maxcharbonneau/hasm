@@ -100,3 +100,34 @@ async def test_reconfigure_updates_token(hass):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data["token"] == "NEW"
+
+
+def _patch_validate_components(components):
+    cfg = HAConfig(core_version="2026.6.1", location_name="X", components=components)
+    return patch(
+        "custom_components.hasm.config_flow._async_validate",
+        new=AsyncMock(return_value=(cfg, "https://ha.example")),
+    )
+
+
+async def test_user_flow_warns_when_remote_runs_hasm(hass):
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    with _patch_validate_components(["sensor", "hasm"]):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "loop_warning"
+    # acknowledge -> entry created
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["url"] == "https://ha.example"
+
+
+async def test_user_flow_no_warning_when_no_hasm(hass):
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    with _patch_validate_components(["sensor"]):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
