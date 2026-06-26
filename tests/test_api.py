@@ -7,7 +7,6 @@ from custom_components.hasm.api import (
     HasmApiClient,
     count_error_entries,
     detect_install_type,
-    parse_backup_info,
     parse_updates,
     version_of,
 )
@@ -16,9 +15,22 @@ from custom_components.hasm.exceptions import (
     HasmConnectionError,
     HasmResponseError,
 )
-from custom_components.hasm.models import HALogEntry
+from custom_components.hasm.models import (
+    HAAgentBackupSummary,
+    HABackupAgent,
+    HABackupOverview,
+    HALogEntry,
+    HAStorage,
+)
 
 OS_SLUG = "home_assistant_operating_system"
+
+
+def test_backup_agent_local_detection():
+    assert HABackupAgent(agent_id="hassio.local", name="Local").is_local is True
+    assert HABackupAgent(agent_id="hassio.my_nas", name="NAS").is_local is False
+    assert HABackupAgent(agent_id="cloud.cloud", name="Cloud").is_local is False
+    assert HABackupAgent(agent_id="backup.local", name="L").is_local is True
 
 
 @pytest.fixture
@@ -116,20 +128,6 @@ def test_count_error_entries_counts_error_and_critical():
     assert count_error_entries(entries) == 2
 
 
-def test_parse_backup_info_picks_latest_and_flags_failed():
-    result = {
-        "state": "idle",
-        "backups": [
-            {"date": "2026-06-20T10:00:00Z", "failed_agent_ids": []},
-            {"date": "2026-06-21T10:00:00Z", "failed_agent_ids": ["x"]},
-        ],
-    }
-    state = parse_backup_info(result)
-    assert state.in_progress is False
-    assert state.last_backup_at == "2026-06-21T10:00:00Z"
-    assert state.last_backup_state == "failed"
-
-
 async def test_test_connection_ok(client, aioclient_mock):
     aioclient_mock.get("https://ha.example/api/", json={"message": "API running."})
     assert await client.async_test_connection() is True
@@ -174,18 +172,23 @@ async def test_snapshot_online_with_degraded_states(
     async def fake_log(self):
         raise HasmConnectionError("ws down")
 
-    async def fake_backup(self):
+    async def fake_agents(self):
+        raise HasmConnectionError("ws down")
+
+    async def fake_binfo(self):
         raise HasmConnectionError("ws down")
 
     monkeypatch.setattr(HasmApiClient, "async_get_system_log", fake_log)
-    monkeypatch.setattr(HasmApiClient, "async_get_backup_state", fake_backup)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_agents_raw", fake_agents)
+    monkeypatch.setattr(HasmApiClient, "async_get_backup_info_raw", fake_binfo)
 
     snap = await client.async_get_snapshot()
     assert snap.health.online is True
     assert snap.health.core_version == "2026.6.3"
     assert snap.location_name == "Maison"
     assert snap.health.status_message is not None
-    assert snap.backup_state is None
+    assert snap.backups is None
+    assert snap.storage is None
 
 
 async def test_snapshot_offline_when_config_fails(client, aioclient_mock):
