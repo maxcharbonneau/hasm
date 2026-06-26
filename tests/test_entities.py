@@ -384,9 +384,7 @@ async def test_storage_sensors(hass, entry):
     )
     await _setup_with_snapshot(hass, entry, snap)
     assert hass.states.get("sensor.maison_disk_free").state == str(6*1024**3)
-    # "Disk used %" slugifies to disk_used, colliding with the "Disk used" sensor,
-    # so HA disambiguates the percent sensor's entity_id with a _2 suffix.
-    assert hass.states.get("sensor.maison_disk_used_2").state == "40.0"
+    assert hass.states.get("sensor.maison_disk_usage").state == "40.0"
 
 
 async def test_storage_sensors_absent_when_no_source(hass, entry):
