@@ -43,9 +43,12 @@
   "entity": {
     "binary_sensor": {
       "connectivity": { "name": "Connectivity" },
-      "backup_problem": { "name": "Backup problem ({agent})" }
+      "backup_problem": { "name": "Backup problem ({agent})" },
+      "backup_in_progress": { "name": "Backup in progress" }
     },
     "sensor": {
+      "backup_last_completed": { "name": "Backup last completed" },
+      "backup_next": { "name": "Backup next" },
       "core_version": { "name": "Core version" },
       "os_version": { "name": "OS version" },
       "supervisor_version": { "name": "Supervisor version" },

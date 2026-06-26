@@ -294,6 +294,17 @@ async def test_backup_problem_binary_sensor(hass, entry):
     assert state is not None and state.state == "on"
 
 
+async def test_global_backup_sensors(hass, entry):
+    ov = HABackupOverview(state="idle", in_progress=False,
+                          last_completed_at="2026-06-20T03:00:00+00:00",
+                          next_at="2026-06-21T03:00:00+00:00")
+    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), backups=ov)
+    await _setup_with_snapshot(hass, entry, snap)
+    assert "2026-06-20" in hass.states.get("sensor.maison_backup_last_completed").state
+    assert "2026-06-21" in hass.states.get("sensor.maison_backup_next").state
+    assert hass.states.get("binary_sensor.maison_backup_in_progress").state == "off"
+
+
 async def test_restart_button_calls_homeassistant_restart(hass, entry):
     snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.3"))
     entry.add_to_hass(hass)
