@@ -128,6 +128,79 @@ def test_count_error_entries_counts_error_and_critical():
     assert count_error_entries(entries) == 2
 
 
+_AGENTS = {
+    "agents": [
+        {"agent_id": "hassio.local", "name": "Local"},
+        {"agent_id": "cloud.cloud", "name": "Cloud"},
+    ]
+}
+_BACKUPS = {
+    "state": "idle",
+    "last_completed_automatic_backup": "2026-06-20T03:00:00+00:00",
+    "next_automatic_backup": "2026-06-21T03:00:00+00:00",
+    "agent_errors": {},
+    "backups": [
+        {  # full, on both agents, ok
+            "backup_id": "a",
+            "date": "2026-06-20T03:00:00+00:00",
+            "homeassistant_included": True,
+            "agents": {"hassio.local": {"size": 100}, "cloud.cloud": {"size": 100}},
+            "failed_agent_ids": [],
+        },
+        {  # partial (no core) — must NOT count as full
+            "backup_id": "b",
+            "date": "2026-06-22T03:00:00+00:00",
+            "homeassistant_included": False,
+            "agents": {"hassio.local": {"size": 10}},
+            "failed_agent_ids": [],
+        },
+        {  # full but failed on cloud — counts for local only
+            "backup_id": "c",
+            "date": "2026-06-19T03:00:00+00:00",
+            "homeassistant_included": True,
+            "agents": {"hassio.local": {"size": 50}},
+            "failed_agent_ids": ["cloud.cloud"],
+        },
+    ],
+}
+
+
+def test_parse_backup_agents():
+    from custom_components.hasm.api import parse_backup_agents
+
+    agents = parse_backup_agents(_AGENTS)
+    assert [a.agent_id for a in agents] == ["hassio.local", "cloud.cloud"]
+    assert agents[0].name == "Local"
+
+
+def test_summarize_backups_per_agent():
+    from custom_components.hasm.api import summarize_backups
+
+    ov = summarize_backups(_AGENTS, _BACKUPS)
+    assert ov.state == "idle" and ov.in_progress is False
+    assert ov.last_completed_at == "2026-06-20T03:00:00+00:00"
+    by = {s.agent_id: s for s in ov.per_agent}
+    # local: last FULL = backup "a" (2026-06-20); "b" is partial, ignored
+    assert by["hassio.local"].last_full_at == "2026-06-20T03:00:00+00:00"
+    assert by["hassio.local"].total_size_bytes == 160  # 100 + 10 + 50
+    assert by["hassio.local"].backup_count == 3
+    # cloud: only "a" succeeded (c failed on cloud) → last full = a
+    assert by["cloud.cloud"].last_full_at == "2026-06-20T03:00:00+00:00"
+    assert by["cloud.cloud"].total_size_bytes == 100
+    assert by["cloud.cloud"].backup_count == 1
+
+
+def test_summarize_backups_in_progress_and_problem():
+    from custom_components.hasm.api import summarize_backups
+
+    data = {**_BACKUPS, "state": "create_backup", "agent_errors": {"cloud.cloud": "auth"}}
+    ov = summarize_backups(_AGENTS, data)
+    assert ov.in_progress is True
+    by = {s.agent_id: s for s in ov.per_agent}
+    assert by["cloud.cloud"].has_problem is True
+    assert by["hassio.local"].has_problem is False
+
+
 async def test_test_connection_ok(client, aioclient_mock):
     aioclient_mock.get("https://ha.example/api/", json={"message": "API running."})
     assert await client.async_test_connection() is True
