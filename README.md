@@ -34,6 +34,21 @@ For each configured instance HASM creates:
 - Native `update.*` entities mirroring the remote updates (Core, OS, Supervisor, add-ons, ...), supporting install, backup, and progress where the remote update supports them.
 - Buttons to restart the remote instance and to reload its configuration.
 
+### Backups & storage
+- **Per-destination backup sensors** (one set per backup destination/agent on the remote instance):
+  - Last full backup — when the most recent full backup completed on that destination.
+  - Backup size — the space currently used by backups on that destination (this is space used, not the destination's total capacity).
+  - Backup count — the number of backups stored on that destination.
+  - A backup-problem `binary_sensor` that turns on when the destination is reporting a failure.
+- **Global backup sensors** (one set per instance):
+  - Last automatic backup — when the last scheduled/automatic backup completed.
+  - Next automatic backup — when the next scheduled backup is due.
+  - A backup-in-progress `binary_sensor`.
+- A **Back up now** button that triggers an automatic backup on the remote instance. It is unavailable while a backup is already running.
+- **Server disk sensors**: free, used, total, and used %. These require the remote instance to expose host storage — either a Supervised/HAOS install (Supervisor host info) or the [`systemmonitor`](https://www.home-assistant.io/integrations/systemmonitor/) integration. On a remote instance that exposes neither, the disk sensors are simply absent.
+
+> Note: the custom entity icons shipped with HASM require Home Assistant 2026.3 or newer. On older versions the entities still work; they just fall back to Home Assistant's default icons.
+
 ## Service: `hasm.call_remote_service`
 Relays an arbitrary service call to a remote Home Assistant managed by HASM.
 
