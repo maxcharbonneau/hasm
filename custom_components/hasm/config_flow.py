@@ -52,6 +52,9 @@ class HasmConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        self._pending: dict[str, Any] | None = None
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry) -> "HasmOptionsFlow":
@@ -80,11 +83,26 @@ class HasmConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self.async_set_unique_id(unique_id)
                     self._abort_if_unique_id_configured()
                 title = config.location_name or user_input[CONF_URL]
+                if "hasm" in config.components:
+                    # Target instance is itself running HASM -> potential mirror loop
+                    # (this instance, or a cycle). Require explicit acknowledgement.
+                    self._pending = {"title": title, "data": user_input}
+                    return await self.async_step_loop_warning()
                 return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_SCHEMA, errors=errors
         )
+
+    async def async_step_loop_warning(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            pending = self._pending or {}
+            return self.async_create_entry(
+                title=pending["title"], data=pending["data"]
+            )
+        return self.async_show_form(step_id="loop_warning", data_schema=vol.Schema({}))
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
