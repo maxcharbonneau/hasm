@@ -45,7 +45,7 @@ For each configured instance HASM creates:
   - Next automatic backup — when the next scheduled backup is due.
   - A backup-in-progress `binary_sensor`.
 - A **Back up now** button that triggers an automatic backup on the remote instance. It is unavailable while a backup is already running.
-- **Server disk sensors**: free, used, total, and used %. These require the remote instance to expose host storage — either a Supervised/HAOS install (Supervisor host info) or the [`systemmonitor`](https://www.home-assistant.io/integrations/systemmonitor/) integration. On a remote instance that exposes neither, the disk sensors are simply absent.
+- **Server usage sensors**: CPU, memory, and disk usage (%). These read the remote's [System Monitor](https://www.home-assistant.io/integrations/systemmonitor/) integration, so it must be enabled on the remote instance — otherwise these sensors stay `unavailable`.
 
 > Note: the custom entity icons shipped with HASM require Home Assistant 2026.3 or newer. On older versions the entities still work; they just fall back to Home Assistant's default icons.
 
