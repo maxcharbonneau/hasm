@@ -27,7 +27,7 @@ from .models import (
     HAConfig,
     HAHealth,
     HALogEntry,
-    HAStorage,
+    HAServerUsage,
     HAUpdate,
     HasmSnapshot,
 )
@@ -169,74 +169,36 @@ def summarize_backups(agents_info: dict, backup_info: dict) -> HABackupOverview:
     )
 
 
-_GB = 1024**3
-_UNIT_TO_BYTES = {
-    "b": 1,
-    "bytes": 1,
-    "kb": 1000,
-    "kib": 1024,
-    "mb": 1000**2,
-    "mib": 1024**2,
-    "gb": 1000**3,
-    "gib": 1024**3,
-    "tb": 1000**4,
-    "tib": 1024**4,
-}
-
-
-def parse_host_storage(host_info: dict) -> HAStorage | None:
-    data = (host_info or {}).get("data", host_info) or {}
-    total, used, free = (
-        data.get("disk_total"),
-        data.get("disk_used"),
-        data.get("disk_free"),
-    )
-    if total is None and free is None:
-        return None
-    # Supervisor reports GB floats.
-    tb = int(total * _GB) if total is not None else None
-    ub = int(used * _GB) if used is not None else None
-    fb = int(free * _GB) if free is not None else None
-    pct = round(used / total * 100, 1) if (total and used is not None) else None
-    return HAStorage(
-        source="host_info", free_bytes=fb, used_bytes=ub, total_bytes=tb, used_percent=pct
-    )
-
-
-def _to_bytes(state: str, unit: str | None) -> int | None:
+def _percent(state) -> float | None:
     try:
-        val = float(state)
+        return float(state)
     except (TypeError, ValueError):
         return None
-    return int(val * _UNIT_TO_BYTES.get((unit or "").lower(), 1))
 
 
-def parse_systemmonitor_storage(states: list[dict]) -> HAStorage | None:
-    free = pct = used = total = None
+def parse_server_usage(states: list[dict]) -> HAServerUsage:
+    """Read CPU / memory / disk usage percentages from the remote's systemmonitor sensors.
+
+    Matches only `system_monitor` entities with a `%` unit, so HASM's own mirrored
+    `<title>_disk_usage` sensor is never picked up. Disk takes the first system_monitor
+    disk usage sensor (the default mount)."""
+    cpu = mem = disk = None
     for s in states or []:
         eid = (s.get("entity_id") or "").lower()
-        if "disk" not in eid and "system_monitor" not in eid:
+        if "system_monitor" not in eid and "systemmonitor" not in eid:
             continue
-        attrs = s.get("attributes") or {}
-        unit = attrs.get("unit_of_measurement")
-        if "free" in eid and free is None:
-            free = _to_bytes(s.get("state"), unit)
-        elif ("usage" in eid or "use_percent" in eid or unit == "%") and pct is None:
-            try:
-                pct = float(s.get("state"))
-            except (TypeError, ValueError):
-                pct = None
-        elif "used" in eid and used is None:
-            used = _to_bytes(s.get("state"), unit)
-    if free is None and pct is None and used is None:
-        return None
-    return HAStorage(
-        source="systemmonitor",
-        free_bytes=free,
-        used_bytes=used,
-        total_bytes=total,
-        used_percent=pct,
-    )
+        if (s.get("attributes") or {}).get("unit_of_measurement") != "%":
+            continue
+        val = _percent(s.get("state"))
+        if val is None:
+            continue
+        if cpu is None and ("processor" in eid or "cpu" in eid):
+            cpu = val
+        elif mem is None and "memor" in eid:
+            mem = val
+        elif disk is None and "disk" in eid:
+            disk = val
+    return HAServerUsage(cpu_percent=cpu, memory_percent=mem, disk_percent=disk)
 
 
 # --- Client (REST + WebSocket) -------------------------------------------------
@@ -443,10 +405,6 @@ class HasmApiClient:
         result = await self._ws_request("system_log/list")
         return [HALogEntry.from_dict(e) for e in (result or [])]
 
-    async def async_get_host_info(self) -> dict:
-        """Supervisor host info (HAOS/Supervised). Raises HasmError on Core/Container."""
-        return await self._get_json("/api/hassio/host/info") or {}
-
     async def async_get_backup_agents_raw(self) -> dict:
         return await self._ws_request("backup/agents/info") or {}
 
@@ -486,13 +444,7 @@ class HasmApiClient:
         except HasmError as e:
             warnings.append(f"backup info unavailable ({e})")
 
-        storage = None
-        try:
-            storage = parse_host_storage(await self.async_get_host_info())
-        except HasmError:
-            storage = None
-        if storage is None:
-            storage = parse_systemmonitor_storage(states)
+        server_usage = parse_server_usage(states)
 
         updates = parse_updates(states)
         latency_ms = int((time.monotonic() - start) * 1000)
@@ -512,5 +464,5 @@ class HasmApiClient:
             location_name=config.location_name,
             updates=tuple(updates),
             backups=backups,
-            storage=storage,
+            server_usage=server_usage,
         )
