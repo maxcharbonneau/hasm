@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — 0.2.1
+## [0.2.1] — 2026-06-27
 
 ### Fixed
 - **Update-loop hardening.** When an instance supervised itself (or formed an A↔B chain),
@@ -22,9 +22,6 @@ All notable changes to this project are documented here. The format is based on
   usage) — which depended on the Supervisor `host/info` endpoint (admin-only, often returning 401)
   and were only created once at setup — with three always-available percentage sensors (CPU,
   memory, disk usage) read directly from the target's `systemmonitor` integration.
-
-### Planned (0.2.2)
-- Automatic cleanup of orphaned mirror entities.
 
 ## [0.2.0] — 2026-06-26 — Backup & storage sensors
 
@@ -84,6 +81,6 @@ All notable changes to this project are documented here. The format is based on
 - Generic `hasm.call_remote_service` service.
 - English and French translations.
 
-[Unreleased]: https://github.com/maxcharbonneau/hasm/compare/v0.2.0...HEAD
+[0.2.1]: https://github.com/maxcharbonneau/hasm/releases/tag/v0.2.1
 [0.2.0]: https://github.com/maxcharbonneau/hasm/releases/tag/v0.2.0
 [0.1.4]: https://github.com/maxcharbonneau/hasm/releases/tag/v0.1.4
