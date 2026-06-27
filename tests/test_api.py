@@ -20,7 +20,7 @@ from custom_components.hasm.models import (
     HABackupAgent,
     HABackupOverview,
     HALogEntry,
-    HAStorage,
+    HAServerUsage,
 )
 
 OS_SLUG = "home_assistant_operating_system"
@@ -224,68 +224,85 @@ def test_summarize_backups_in_progress_and_problem():
     assert by["hassio.local"].has_problem is False
 
 
-def test_parse_host_storage_gb_to_bytes():
-    from custom_components.hasm.api import parse_host_storage
-
-    # Supervisor host/info: disk sizes are GB floats
-    host = {"data": {"disk_total": 100.0, "disk_used": 40.0, "disk_free": 60.0}}
-    st = parse_host_storage(host)
-    assert st.source == "host_info"
-    assert st.total_bytes == int(100.0 * 1024**3)
-    assert st.free_bytes == int(60.0 * 1024**3)
-    assert round(st.used_percent, 1) == 40.0
-
-
-def test_parse_systemmonitor_storage_from_states():
-    from custom_components.hasm.api import parse_systemmonitor_storage
+def test_parse_server_usage():
+    from custom_components.hasm.api import parse_server_usage
 
     states = [
         {
-            "entity_id": "sensor.system_monitor_disk_free",
-            "state": "53.7",
-            "attributes": {"device_class": "data_size", "unit_of_measurement": "GiB"},
+            "entity_id": "sensor.system_monitor_processor_use",
+            "state": "2.0",
+            "attributes": {"unit_of_measurement": "%"},
+        },
+        {
+            "entity_id": "sensor.system_monitor_memory_usage",
+            "state": "20.6",
+            "attributes": {"unit_of_measurement": "%"},
         },
         {
             "entity_id": "sensor.system_monitor_disk_usage",
-            "state": "46.0",
+            "state": "5.9",
             "attributes": {"unit_of_measurement": "%"},
         },
     ]
-    st = parse_systemmonitor_storage(states)
-    assert st is not None and st.source == "systemmonitor"
-    assert st.free_bytes == int(53.7 * 1024**3)  # GiB -> bytes
-    assert round(st.used_percent, 1) == 46.0
+    su = parse_server_usage(states)
+    assert su.cpu_percent == 2.0
+    assert su.memory_percent == 20.6
+    assert su.disk_percent == 5.9
 
 
-def test_parse_systemmonitor_storage_absent():
-    from custom_components.hasm.api import parse_systemmonitor_storage
+def test_parse_server_usage_ignores_non_systemmonitor_and_unavailable():
+    from custom_components.hasm.api import parse_server_usage
 
-    assert (
-        parse_systemmonitor_storage([{"entity_id": "sensor.cpu", "state": "5"}]) is None
-    )
+    states = [
+        # HASM's own mirrored sensor: NOT system_monitor, must be ignored.
+        {
+            "entity_id": "sensor.bonoha01_disk_usage",
+            "state": "unavailable",
+            "attributes": {"unit_of_measurement": "%"},
+        },
+        # system_monitor but wrong unit (MB/s): must be ignored.
+        {
+            "entity_id": "sensor.system_monitor_disk_write_rate",
+            "state": "1.2",
+            "attributes": {"unit_of_measurement": "MB/s"},
+        },
+        # the only valid disk reading.
+        {
+            "entity_id": "sensor.system_monitor_disk_usage",
+            "state": "5.9",
+            "attributes": {"unit_of_measurement": "%"},
+        },
+    ]
+    su = parse_server_usage(states)
+    assert su.cpu_percent is None
+    assert su.memory_percent is None
+    assert su.disk_percent == 5.9
 
 
-async def test_get_host_info_ok(client, aioclient_mock):
-    aioclient_mock.get(
-        "https://ha.example/api/hassio/host/info",
-        json={"result": "ok", "data": {"disk_total": 32.0, "disk_free": 8.0}},
-    )
-    data = await client.async_get_host_info()
-    assert data["data"]["disk_total"] == 32.0
-
-
-async def test_snapshot_includes_backups_and_storage(client, aioclient_mock, monkeypatch):
+async def test_snapshot_includes_server_usage(client, aioclient_mock, monkeypatch):
     aioclient_mock.get(
         "https://ha.example/api/config",
         json={"version": "2026.6.1", "location_name": "X", "components": ["hassio"]},
     )
-    aioclient_mock.get("https://ha.example/api/states", json=[])
     aioclient_mock.get(
-        "https://ha.example/api/hassio/host/info",
-        json={
-            "result": "ok",
-            "data": {"disk_total": 10.0, "disk_used": 4.0, "disk_free": 6.0},
-        },
+        "https://ha.example/api/states",
+        json=[
+            {
+                "entity_id": "sensor.system_monitor_processor_use",
+                "state": "2.0",
+                "attributes": {"unit_of_measurement": "%"},
+            },
+            {
+                "entity_id": "sensor.system_monitor_memory_usage",
+                "state": "20.6",
+                "attributes": {"unit_of_measurement": "%"},
+            },
+            {
+                "entity_id": "sensor.system_monitor_disk_usage",
+                "state": "5.9",
+                "attributes": {"unit_of_measurement": "%"},
+            },
+        ],
     )
 
     async def fake_log(self):
@@ -304,54 +321,10 @@ async def test_snapshot_includes_backups_and_storage(client, aioclient_mock, mon
     snap = await client.async_get_snapshot()
     assert snap.health.online is True
     assert snap.backups is not None and snap.backups.state == "idle"
-    assert snap.storage is not None and snap.storage.source == "host_info"
-    assert snap.storage.total_bytes == int(10.0 * 1024**3)
-
-
-async def test_snapshot_storage_falls_back_to_systemmonitor(
-    client, aioclient_mock, monkeypatch
-):
-    # When Supervisor host/info is unavailable, storage falls back to systemmonitor states.
-    aioclient_mock.get(
-        "https://ha.example/api/config",
-        json={"version": "2026.6.1", "location_name": "X", "components": []},
-    )
-    aioclient_mock.get(
-        "https://ha.example/api/states",
-        json=[
-            {
-                "entity_id": "sensor.system_monitor_disk_free",
-                "state": "53.7",
-                "attributes": {"device_class": "data_size", "unit_of_measurement": "GiB"},
-            },
-            {
-                "entity_id": "sensor.system_monitor_disk_usage",
-                "state": "46.0",
-                "attributes": {"unit_of_measurement": "%"},
-            },
-        ],
-    )
-    aioclient_mock.get("https://ha.example/api/hassio/host/info", status=500)
-
-    async def fake_log(self):
-        return []
-
-    async def fake_agents(self):
-        return {"agents": []}
-
-    async def fake_binfo(self):
-        return {"state": "idle", "backups": [], "agent_errors": {}}
-
-    monkeypatch.setattr(HasmApiClient, "async_get_system_log", fake_log)
-    monkeypatch.setattr(HasmApiClient, "async_get_backup_agents_raw", fake_agents)
-    monkeypatch.setattr(HasmApiClient, "async_get_backup_info_raw", fake_binfo)
-
-    snap = await client.async_get_snapshot()
-    assert snap.health.online is True
-    assert snap.storage is not None
-    assert snap.storage.source == "systemmonitor"
-    assert snap.storage.free_bytes == int(53.7 * 1024**3)
-    assert round(snap.storage.used_percent, 1) == 46.0
+    assert snap.server_usage is not None
+    assert snap.server_usage.cpu_percent == 2.0
+    assert snap.server_usage.memory_percent == 20.6
+    assert snap.server_usage.disk_percent == 5.9
 
 
 async def test_test_connection_ok(client, aioclient_mock):
@@ -394,9 +367,6 @@ async def test_snapshot_online_with_degraded_states(
     aioclient_mock.get(
         "https://ha.example/api/states", status=500
     )  # states KO -> degraded
-    aioclient_mock.get(
-        "https://ha.example/api/hassio/host/info", status=500
-    )  # host/info KO -> no storage
 
     async def fake_log(self):
         raise HasmConnectionError("ws down")
@@ -417,7 +387,9 @@ async def test_snapshot_online_with_degraded_states(
     assert snap.location_name == "Maison"
     assert snap.health.status_message is not None
     assert snap.backups is None
-    assert snap.storage is None
+    # states failed -> server_usage parsed from an empty list (all None), but present.
+    assert snap.server_usage is not None
+    assert snap.server_usage.cpu_percent is None
 
 
 async def test_snapshot_offline_when_config_fails(client, aioclient_mock):
