@@ -16,7 +16,15 @@ All notable changes to this project are documented here. The format is based on
 ### Added
 - Config flow warns when the target instance is itself running HASM (loop risk if it is this
   instance or a cycle).
-- _(Possibly here or in 0.2.2)_ automatic cleanup of orphaned mirror entities.
+
+### Changed
+- **Server metrics simplified.** Replaced the four byte-level disk sensors (free / used / total /
+  usage) — which depended on the Supervisor `host/info` endpoint (admin-only, often returning 401)
+  and were only created once at setup — with three always-available percentage sensors (CPU,
+  memory, disk usage) read directly from the target's `systemmonitor` integration.
+
+### Planned (0.2.2)
+- Automatic cleanup of orphaned mirror entities.
 
 ## [0.2.0] — 2026-06-26 — Backup & storage sensors
 
