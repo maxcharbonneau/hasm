@@ -61,10 +61,9 @@
       "backup_size": { "name": "Taille des sauvegardes ({agent})" },
       "backup_last_full": { "name": "Dernière sauvegarde complète ({agent})" },
       "backup_count": { "name": "Nombre de sauvegardes ({agent})" },
-      "disk_free": { "name": "Espace disque libre" },
-      "disk_used": { "name": "Espace disque utilisé" },
-      "disk_total": { "name": "Disque total" },
-      "disk_used_percent": { "name": "Utilisation du disque" }
+      "cpu_usage": { "name": "Utilisation CPU" },
+      "memory_usage": { "name": "Utilisation mémoire" },
+      "disk_usage": { "name": "Utilisation disque" }
     },
     "button": {
       "restart": { "name": "Redémarrer" },

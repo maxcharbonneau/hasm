@@ -16,10 +16,9 @@
       "backup_count":          { "default": "mdi:database-outline" },
       "backup_last_completed": { "default": "mdi:backup-restore" },
       "backup_next":           { "default": "mdi:clock-outline" },
-      "disk_free":             { "default": "mdi:harddisk" },
-      "disk_used":             { "default": "mdi:harddisk" },
-      "disk_total":            { "default": "mdi:harddisk" },
-      "disk_used_percent":     { "default": "mdi:gauge" }
+      "cpu_usage":             { "default": "mdi:cpu-64-bit" },
+      "memory_usage":          { "default": "mdi:memory" },
+      "disk_usage":            { "default": "mdi:harddisk" }
     },
     "button": {
       "restart":       { "default": "mdi:restart" },
