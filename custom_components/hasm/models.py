@@ -55,12 +55,10 @@ class HABackupOverview:
 
 
 @dataclass(frozen=True)
-class HAStorage:
-    source: str  # "host_info" | "systemmonitor"
-    free_bytes: int | None = None
-    used_bytes: int | None = None
-    total_bytes: int | None = None
-    used_percent: float | None = None
+class HAServerUsage:
+    cpu_percent: float | None = None
+    memory_percent: float | None = None
+    disk_percent: float | None = None
 
 
 @dataclass(frozen=True)
@@ -115,4 +113,4 @@ class HasmSnapshot:
     location_name: str | None = None
     updates: tuple[HAUpdate, ...] = ()
     backups: HABackupOverview | None = None
-    storage: HAStorage | None = None
+    server_usage: HAServerUsage | None = None
