@@ -73,13 +73,11 @@ async def async_setup_entry(
         HasmGlobalBackupSensor(coordinator, "backup_next", "next_at"),
     ])
 
-    if coordinator.data and coordinator.data.storage is not None:
-        async_add_entities([
-            HasmStorageSensor(coordinator, "disk_free", "free_bytes", SensorDeviceClass.DATA_SIZE, "B"),
-            HasmStorageSensor(coordinator, "disk_used", "used_bytes", SensorDeviceClass.DATA_SIZE, "B"),
-            HasmStorageSensor(coordinator, "disk_total", "total_bytes", SensorDeviceClass.DATA_SIZE, "B"),
-            HasmStorageSensor(coordinator, "disk_used_percent", "used_percent", None, "%"),
-        ])
+    async_add_entities([
+        HasmServerUsageSensor(coordinator, "cpu_usage", "cpu_percent"),
+        HasmServerUsageSensor(coordinator, "memory_usage", "memory_percent"),
+        HasmServerUsageSensor(coordinator, "disk_usage", "disk_percent"),
+    ])
 
     known_agents: set[str] = set()
 
@@ -139,19 +137,19 @@ class HasmGlobalBackupSensor(HasmEntity, SensorEntity):
         return dt_util.parse_datetime(raw) if raw else None
 
 
-class HasmStorageSensor(HasmEntity, SensorEntity):
-    def __init__(self, coordinator, key, attr, device_class, unit) -> None:
+class HasmServerUsageSensor(HasmEntity, SensorEntity):
+    _attr_native_unit_of_measurement = "%"
+    _attr_state_class = "measurement"
+
+    def __init__(self, coordinator, key: str, usage_attr: str) -> None:
         super().__init__(coordinator, key)
-        self._attr = attr
+        self._usage_attr = usage_attr
         self._attr_translation_key = key
-        self._attr_device_class = device_class
-        self._attr_native_unit_of_measurement = unit
-        self._attr_state_class = "measurement"
 
     @property
     def native_value(self):
-        st = self.coordinator.data.storage if self.coordinator.data else None
-        return getattr(st, self._attr) if st else None
+        su = self.coordinator.data.server_usage if self.coordinator.data else None
+        return getattr(su, self._usage_attr) if su else None
 
 
 class _HasmAgentSensorBase(HasmEntity, SensorEntity):
