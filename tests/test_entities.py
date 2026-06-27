@@ -13,7 +13,7 @@ from custom_components.hasm.models import (
     HAAgentBackupSummary,
     HABackupAgent,
     HABackupOverview,
-    HAStorage,
+    HAServerUsage,
 )
 
 
@@ -238,11 +238,11 @@ def test_icons_json_keys_match_translation_keys():
         return set(re.findall(r'_attr_translation_key\s*=\s*"([^"]+)"', src))
 
     sensor_src = (base / "sensor.py").read_text(encoding="utf-8")
-    # Global + storage sensors take their translation_key as a string literal
-    # immediately after the coordinator argument.
+    # Global backup + server-usage sensors take their translation_key as a string
+    # literal immediately after the coordinator argument.
     ctor_keys = set(
         re.findall(
-            r'Hasm(?:GlobalBackup|Storage)Sensor\(\s*coordinator,\s*"([^"]+)"',
+            r'Hasm(?:GlobalBackup|ServerUsage)Sensor\(\s*coordinator,\s*"([^"]+)"',
             sensor_src,
         )
     )
@@ -395,21 +395,36 @@ async def test_restart_button_is_a_control_not_config(hass, entry):
     assert reg_entry.entity_category is None
 
 
-async def test_storage_sensors(hass, entry):
+async def test_server_usage_sensors_created_and_valued(hass, entry):
     snap = HasmSnapshot(
         health=HAHealth(online=True, core_version="2026.6.1"),
-        storage=HAStorage(source="host_info", free_bytes=6*1024**3,
-                          used_bytes=4*1024**3, total_bytes=10*1024**3, used_percent=40.0),
+        server_usage=HAServerUsage(
+            cpu_percent=2.0, memory_percent=20.6, disk_percent=5.9
+        ),
     )
     await _setup_with_snapshot(hass, entry, snap)
-    assert hass.states.get("sensor.maison_disk_free").state == str(6*1024**3)
-    assert hass.states.get("sensor.maison_disk_usage").state == "40.0"
+    cpu = hass.states.get("sensor.maison_cpu_usage")
+    mem = hass.states.get("sensor.maison_memory_usage")
+    disk = hass.states.get("sensor.maison_disk_usage")
+    assert cpu is not None and cpu.state == "2.0"
+    assert mem is not None and mem.state == "20.6"
+    assert disk is not None and disk.state == "5.9"
+    assert cpu.attributes["unit_of_measurement"] == "%"
+    assert mem.attributes["unit_of_measurement"] == "%"
+    assert disk.attributes["unit_of_measurement"] == "%"
 
 
-async def test_storage_sensors_absent_when_no_source(hass, entry):
-    snap = HasmSnapshot(health=HAHealth(online=True, core_version="2026.6.1"), storage=None)
+async def test_server_usage_sensors_unknown_when_absent(hass, entry):
+    # All None: the 3 sensors are still created unconditionally, reporting unknown.
+    snap = HasmSnapshot(
+        health=HAHealth(online=True, core_version="2026.6.1"),
+        server_usage=HAServerUsage(),
+    )
     await _setup_with_snapshot(hass, entry, snap)
-    assert hass.states.get("sensor.maison_disk_free") is None
+    for key in ("cpu_usage", "memory_usage", "disk_usage"):
+        state = hass.states.get(f"sensor.maison_{key}")
+        assert state is not None
+        assert state.state == "unknown"
 
 
 async def test_backup_agent_sensors_capped(hass, entry):
